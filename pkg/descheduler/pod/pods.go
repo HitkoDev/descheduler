@@ -18,6 +18,8 @@ package pod
 
 import (
 	"sort"
+	"math/rand"
+	"time"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -261,6 +263,30 @@ func SortPodsBasedOnPriorityLowToHigh(pods []*v1.Pod) {
 		}
 		return *pods[i].Spec.Priority < *pods[j].Spec.Priority
 	})
+
+	rand.Seed(time.Now().Unix())
+	start := 0
+	for end := 0; end < len(pods); end ++ {
+		p1 := pods[start]
+		p2 := pods[end]
+
+		if ((p1.Spec.Priority == nil && p2.Spec.Priority == nil || p1.Spec.Priority != nil && p2.Spec.Priority != nil && *p1.Spec.Priority == *p2.Spec.Priority)) && IsBestEffortPod(p1) == IsBestEffortPod(p2) && IsBurstablePod(p1) == IsBurstablePod(p2) && IsGuaranteedPod(p1) == IsGuaranteedPod(p2) {
+			continue
+		}
+		rand.Shuffle(end - start, func(i, j int) {
+			i = i + start
+			j = j + start
+			*pods[i], *pods[j] = *pods[j], *pods[i]
+		})
+		start = end
+	}
+	if start < len(pods) - 1 {
+		rand.Shuffle(len(pods) - start, func(i, j int) {
+			i = i + start
+			j = j + start
+			*pods[i], *pods[j] = *pods[j], *pods[i]
+		})
+	}
 }
 
 // SortPodsBasedOnAge sorts Pods from oldest to most recent in place
